@@ -12,6 +12,7 @@ import { convert3DKeypointsToHandpose } from "../lib/converter/convert3DKeypoint
 import { resizeHandpose } from "../lib/converter/resizeHandpose";
 import { getFingerTips } from "../lib/getFingerTips";
 import { giftwrap } from "../lib/calculator/giftwrap";
+import { intersectLineSegmentAndLine } from "../lib/calculator/intersectLineSegmentAndLine";
 
 type Props = {
   handpose: MutableRefObject<Hand[]>;
@@ -186,8 +187,20 @@ export const HandSketch = ({ handpose }: Props) => {
           const velocity = rightHandVelocities[i][rightHandposesHead[i]];
           const newHand: Keypoint[] = [];
           for (let j = 0; j < 5; j++) {
+            // const k = intersectLineSegmentAndLine(
+            //   { start: rightHand2D[4], end: rightHand2D[8] },
+            //   {
+            //     point: handPosition[j],
+            //     direction: velocity[j],
+            //   }
+            // );
+            // if (k) {
+            //   console.log(k);
+            //   velocity[j] = { x: velocity[j].x * k, y: velocity[j].y * k };
+            // }
+            //更新処理
             newHand.push({
-              x: handPosition[j].x + velocity[j].x, //error
+              x: handPosition[j].x + velocity[j].x,
               y: handPosition[j].y + velocity[j].y,
             });
           }

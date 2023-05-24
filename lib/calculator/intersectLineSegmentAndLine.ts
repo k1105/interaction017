@@ -13,29 +13,34 @@ interface Line {
   direction: Point;
 }
 
-function intersectLineSegmentAndLine(
+export const intersectLineSegmentAndLine = (
   segment: LineSegment,
   line: Line
-): Point | undefined {
+) => {
   const { start: a, end: b } = segment;
   const { point: c, direction: d } = line;
 
-  // 線分ABの方向ベクトルを計算
-  const ab = { x: b.x - a.x, y: b.y - a.y };
+  const e = { x: d.x + c.x, y: d.y + c.y };
 
-  // 線分ABと直線CDの方向ベクトルの外積を計算
-  const abcdCross = ab.x * d.y - ab.y * d.x;
+  const isIntersect =
+    ((a.x - b.x) * (c.y - a.y) - (a.y - b.y) * (c.x - a.x)) *
+      ((a.x - b.x) * (e.y - a.y) - (a.y - b.y) * (e.x - a.x)) <=
+      0 &&
+    ((c.x - e.x) * (a.y - c.y) - (c.y - e.y) * (a.x - c.x)) *
+      ((c.x - e.x) * (b.y - c.y) - (c.y - e.y) * (b.x - c.x)) <=
+      0; //交差判定
 
-  // 線分ABと直線CDが平行な場合
-  if (abcdCross === 0) {
+  if (isIntersect) {
+    const a1 = b.y - a.y;
+    const b1 = a.x - b.x;
+    const c1 = a.y * b.x - a.x * b.y;
+    const a2 = e.y - c.y;
+    const b2 = c.x - e.x;
+    const c2 = c.y * e.x - c.x * e.y;
+    const int_x = (b1 * c2 - b2 * c1) / (a1 * b2 - a2 * b1);
+    const k = (int_x - c.x) / d.x;
+    return k;
+  } else {
     return undefined;
   }
-
-  // 線分ABと直線CDの交点の位置を計算
-  const t = ((c.x - a.x) * d.y - (c.y - a.y) * d.x) / abcdCross;
-  const intersectionX = c.x + d.x * t;
-  const intersectionY = c.y + d.y * t;
-
-  // 交点の座標を返す
-  return { x: intersectionX, y: intersectionY };
-}
+};
