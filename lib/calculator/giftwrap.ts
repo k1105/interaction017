@@ -1,6 +1,9 @@
 import { Keypoint } from "@tensorflow-models/hand-pose-detection";
 
 export const giftwrap = (points: Keypoint[]) => {
+  if (points.length == 0) {
+    return [];
+  }
   // giftwrap法によって二次元平面上に与えられた点群から凸包をなす頂点を選択してその頂点番号（配列のインデックス）を返す関数.
   // pointsのうち、y最小のものを見つける. もし最小のyをとるpointが複数ある場合は、その中でもxが最小のものを選ぶ
   let index: number = 0;

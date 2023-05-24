@@ -17,14 +17,14 @@ type Props = {
   handpose: MutableRefObject<Hand[]>;
 };
 
-let leftHand: Keypoint[] = [];
 let rightHand: Keypoint[] = [];
 let rightHand2D: Keypoint[] = [];
-let leftHandOpacity: number = 0;
 let rightHandOpacity: number = 0;
 const minimumFrame: number = 12;
-const rightHandposes: Keypoint[][][] = [[]];
-const rightHandposesHead: number[] = [0];
+const rightHandVelocities: Keypoint[][][] = [[]];
+const rightHandposesHead: number[] = [0]; // velocityの先頭を管理
+const rightHandPositions: Keypoint[][] = []; //現在のフレームにおける位置を管理
+let prevRightHandPosition: Keypoint[] = []; //1フレーム前の手指の動きを保存
 
 type Handpose = Keypoint[];
 
@@ -91,17 +91,16 @@ export const HandSketch = ({ handpose }: Props) => {
     }
 
     debugLog.current.push({
-      label: "rightHandposes length",
-      value: rightHandposes.length,
+      label: "rightHandVelocities length",
+      value: rightHandVelocities.length,
+    });
+
+    debugLog.current.push({
+      label: "RightHandPositions length",
+      value: rightHandPositions.length,
     });
 
     p5.clear();
-    if (hands.left.length > 0) {
-      leftHand = hands.left;
-      leftHandOpacity = Math.min(255, leftHandOpacity + 255 / 10);
-    } else {
-      leftHandOpacity = Math.max(0, leftHandOpacity - 255 / 10);
-    }
 
     const keypointsArray: Keypoint[] = [];
 
@@ -111,20 +110,38 @@ export const HandSketch = ({ handpose }: Props) => {
       rightHandOpacity = Math.min(255, rightHandOpacity + 255 / 10);
     } else {
       rightHandOpacity = Math.max(0, rightHandOpacity - 255 / 10);
-      rightHandposes[rightHandposes.length - 1] = [];
+      rightHandVelocities[rightHandVelocities.length - 1] = [];
     }
 
     if (rightHand.length > 0) {
+      //新規の記録
       const fingerTips = getFingerTips(resizeHandpose(rightHand, 1500));
       if (isFront(rightHand2D, "right")) {
-        rightHandposes[rightHandposes.length - 1].push(fingerTips);
+        //画面に対して正面を向いていた場合
+        //末尾の配列に要素を追加していく
+        const target = rightHandVelocities.length - 1;
+        if (rightHandVelocities[target].length == 0) {
+          //先頭要素の初期化
+          rightHandVelocities[target].push(fingerTips);
+          //rightHandPositionsの作成
+          rightHandPositions[target] = fingerTips;
+        } else {
+          //初期値ではない場合
+          const velocities: Keypoint[] = [];
+          fingerTips.forEach((keypoint, index) => {
+            velocities.push({
+              x: keypoint.x - prevRightHandPosition[index].x,
+              y: keypoint.y - prevRightHandPosition[index].y,
+            });
+          });
+          rightHandVelocities[target].push(velocities);
+        }
         keypointsArray.push(...fingerTips);
-      } else if (rightHandposes[rightHandposes.length - 1].length > 0) {
-        rightHandposes.push([]);
-        rightHandposesHead.push(0);
-      }
 
-      if (!isFront(rightHand2D, "right")) {
+        //prevRightHandPositionの登録
+        prevRightHandPosition = fingerTips;
+      } else {
+        //外枠の描画
         p5.push();
         p5.stroke(255, rightHandOpacity);
         p5.noFill();
@@ -136,31 +153,70 @@ export const HandSketch = ({ handpose }: Props) => {
         }
         p5.endShape(p5.CLOSE);
         p5.pop();
-      }
 
-      if (rightHandposes.length > 1) {
-        //ログモーションの描画
-        rightHandposes.forEach((hands, i) => {
-          if (hands.length > minimumFrame && i < rightHandposes.length - 1) {
-            keypointsArray.push(...hands[rightHandposesHead[i]]);
-            rightHandposesHead[i] = (rightHandposesHead[i] + 1) % hands.length;
+        if (rightHandVelocities[rightHandVelocities.length - 1].length > 0) {
+          //末尾のレコードには情報が記録されていた場合
+          const initPositions =
+            rightHandVelocities[rightHandVelocities.length - 1][0];
+          const initVelocity = [];
+          for (let i = 0; i < initPositions.length; i++) {
+            initVelocity.push({
+              x: initPositions[i].x - prevRightHandPosition[i].x,
+              y: initPositions[i].y - prevRightHandPosition[i].y,
+            });
           }
-        });
-      }
+          rightHandVelocities[rightHandVelocities.length - 1][0] = initVelocity;
 
-      p5.push();
-      p5.noStroke();
-      p5.translate(p5.width / 2, p5.height / 2 + 50);
-      const indices = giftwrap(keypointsArray);
-      p5.beginShape();
-      for (const index of indices) {
-        p5.vertex(keypointsArray[index].x, keypointsArray[index].y);
+          //新規の配列を作成
+          rightHandVelocities.push([]);
+          rightHandposesHead.push(0);
+          rightHandPositions.push([]);
+        }
       }
-      p5.endShape(p5.CLOSE);
-      p5.pop();
     }
-  };
 
+    if (rightHandPositions.length > 1) {
+      //ログモーションの描画
+      for (let i = 0; i < rightHandPositions.length; i++) {
+        if (i < rightHandVelocities.length - 1) {
+          rightHandposesHead[i] =
+            (rightHandposesHead[i] + 1) % rightHandVelocities[i].length;
+          //末尾ではない場合：末尾は現在記録中の運動
+          const handPosition = rightHandPositions[i]; //Keypoint[]
+          const velocity = rightHandVelocities[i][rightHandposesHead[i]];
+          const newHand: Keypoint[] = [];
+          for (let j = 0; j < 5; j++) {
+            newHand.push({
+              x: handPosition[j].x + velocity[j].x, //error
+              y: handPosition[j].y + velocity[j].y,
+            });
+          }
+          keypointsArray.push(...newHand);
+          rightHandPositions[i] = newHand;
+        }
+      }
+    }
+
+    debugLog.current.push({
+      label: "KeypointsArray length",
+      value: keypointsArray.length,
+    });
+
+    p5.push();
+    p5.stroke(255);
+    p5.fill(255, 200);
+    p5.translate(p5.width / 2, p5.height / 2 + 50);
+    for (const keypoint of keypointsArray) {
+      p5.ellipse(keypoint.x, keypoint.y, 3);
+    }
+    const indices = giftwrap(keypointsArray);
+    p5.beginShape();
+    for (const index of indices) {
+      p5.vertex(keypointsArray[index].x, keypointsArray[index].y);
+    }
+    p5.endShape(p5.CLOSE);
+    p5.pop();
+  };
   const windowResized = (p5: p5Types) => {
     p5.resizeCanvas(p5.windowWidth, p5.windowHeight);
   };
