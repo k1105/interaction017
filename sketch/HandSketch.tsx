@@ -12,7 +12,7 @@ import { convert3DKeypointsToHandpose } from "../lib/converter/convert3DKeypoint
 import { resizeHandpose } from "../lib/converter/resizeHandpose";
 import { getFingerTips } from "../lib/getFingerTips";
 import { giftwrap } from "../lib/calculator/giftwrap";
-import { intersectLineSegmentAndLine } from "../lib/calculator/intersectLineSegmentAndLine";
+import { intersectLineSegments } from "../lib/calculator/intersectLineSegments";
 
 type Props = {
   handpose: MutableRefObject<Hand[]>;
@@ -152,6 +152,36 @@ export const HandSketch = ({ handpose }: Props) => {
         for (const index of indices) {
           p5.vertex(rightHand2D[index].x, rightHand2D[index].y);
         }
+
+        for (const positions of rightHandPositions) {
+          for (const position of positions) {
+            for (let i = 0; i < indices.length; i++) {
+              let cn = 0; //cross number
+              if (
+                intersectLineSegments(
+                  {
+                    start: rightHand2D[indices[i]],
+                    end: rightHand2D[indices[(i + 1) % indices.length]],
+                  },
+                  {
+                    start: { x: 0, y: 0 },
+                    end: position, //適当においてる
+                  }
+                )
+              ) {
+                cn++;
+              }
+              if (cn % 2 == 1) {
+                //交差している
+                //ポイントの削除
+                p5.push();
+                p5.fill(255, 0, 0);
+                p5.ellipse(position.x, position.y, 10);
+                p5.pop();
+              }
+            }
+          }
+        }
         p5.endShape(p5.CLOSE);
         p5.pop();
 
@@ -177,7 +207,6 @@ export const HandSketch = ({ handpose }: Props) => {
     }
 
     if (rightHandPositions.length > 1) {
-      //ログモーションの描画
       for (let i = 0; i < rightHandPositions.length; i++) {
         if (i < rightHandVelocities.length - 1) {
           rightHandposesHead[i] =
@@ -215,10 +244,11 @@ export const HandSketch = ({ handpose }: Props) => {
       value: keypointsArray.length,
     });
 
+    //ログモーションの描画
     p5.push();
     p5.stroke(255);
-    p5.fill(255, 200);
-    p5.translate(p5.width / 2, p5.height / 2 + 50);
+    p5.fill(255, 100);
+    p5.translate(p5.width / 2, p5.height / 2);
     for (const keypoint of keypointsArray) {
       p5.ellipse(keypoint.x, keypoint.y, 3);
     }
