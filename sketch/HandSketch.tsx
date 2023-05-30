@@ -141,68 +141,6 @@ export const HandSketch = ({ handpose }: Props) => {
 
         //prevRightHandPositionの登録
         prevRightHandPosition = fingerTips;
-      } else {
-        //外枠の描画
-        p5.push();
-        p5.stroke(255, rightHandOpacity);
-        p5.noFill();
-        p5.translate(p5.width / 2, p5.height / 2);
-        const indices = giftwrap(rightHand2D);
-        p5.beginShape();
-        for (const index of indices) {
-          p5.vertex(rightHand2D[index].x, rightHand2D[index].y);
-        }
-
-        for (const positions of rightHandPositions) {
-          for (const position of positions) {
-            for (let i = 0; i < indices.length; i++) {
-              let cn = 0; //cross number
-              if (
-                intersectLineSegments(
-                  {
-                    start: rightHand2D[indices[i]],
-                    end: rightHand2D[indices[(i + 1) % indices.length]],
-                  },
-                  {
-                    start: { x: 0, y: 0 },
-                    end: position, //適当においてる
-                  }
-                )
-              ) {
-                cn++;
-              }
-              if (cn % 2 == 1) {
-                //交差している
-                //ポイントの削除
-                p5.push();
-                p5.fill(255, 0, 0);
-                p5.ellipse(position.x, position.y, 10);
-                p5.pop();
-              }
-            }
-          }
-        }
-        p5.endShape(p5.CLOSE);
-        p5.pop();
-
-        if (rightHandVelocities[rightHandVelocities.length - 1].length > 0) {
-          //末尾のレコードには情報が記録されていた場合
-          const initPositions =
-            rightHandVelocities[rightHandVelocities.length - 1][0];
-          const initVelocity = [];
-          for (let i = 0; i < initPositions.length; i++) {
-            initVelocity.push({
-              x: initPositions[i].x - prevRightHandPosition[i].x,
-              y: initPositions[i].y - prevRightHandPosition[i].y,
-            });
-          }
-          rightHandVelocities[rightHandVelocities.length - 1][0] = initVelocity;
-
-          //新規の配列を作成
-          rightHandVelocities.push([]);
-          rightHandposesHead.push(0);
-          rightHandPositions.push([]);
-        }
       }
     }
 
@@ -243,6 +181,71 @@ export const HandSketch = ({ handpose }: Props) => {
       label: "KeypointsArray length",
       value: keypointsArray.length,
     });
+
+    if (rightHand.length > 0 && !isFront(rightHand2D, "right")) {
+      //外枠の描画
+      p5.push();
+      p5.stroke(255, rightHandOpacity);
+      p5.noFill();
+      p5.translate(p5.width / 2, p5.height / 2);
+      const indices = giftwrap(rightHand2D);
+      p5.beginShape();
+      for (const index of indices) {
+        p5.vertex(rightHand2D[index].x, rightHand2D[index].y);
+      }
+
+      for (const positions of rightHandPositions) {
+        for (const position of positions) {
+          for (let i = 0; i < indices.length; i++) {
+            p5.line(-1000, -1000, position.x, position.y);
+            let cn = 0; //cross number
+            if (
+              intersectLineSegments(
+                {
+                  start: rightHand2D[indices[i]],
+                  end: rightHand2D[indices[(i + 1) % indices.length]],
+                },
+                {
+                  start: { x: -1000, y: -1000 },
+                  end: position,
+                }
+              )
+            ) {
+              cn++;
+            }
+            if (cn % 2 == 1) {
+              //交差している
+              //ポイントの削除
+              p5.push();
+              p5.fill(255, 0, 0);
+              p5.ellipse(position.x, position.y, 10);
+              p5.pop();
+            }
+          }
+        }
+      }
+      p5.endShape(p5.CLOSE);
+      p5.pop();
+
+      if (rightHandVelocities[rightHandVelocities.length - 1].length > 0) {
+        //末尾のレコードには情報が記録されていた場合
+        const initPositions =
+          rightHandVelocities[rightHandVelocities.length - 1][0];
+        const initVelocity = [];
+        for (let i = 0; i < initPositions.length; i++) {
+          initVelocity.push({
+            x: initPositions[i].x - prevRightHandPosition[i].x,
+            y: initPositions[i].y - prevRightHandPosition[i].y,
+          });
+        }
+        rightHandVelocities[rightHandVelocities.length - 1][0] = initVelocity;
+
+        //新規の配列を作成
+        rightHandVelocities.push([]);
+        rightHandposesHead.push(0);
+        rightHandPositions.push([]);
+      }
+    }
 
     //ログモーションの描画
     p5.push();
